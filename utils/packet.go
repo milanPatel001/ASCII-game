@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"log"
+	"net"
+	"time"
 )
 
 const (
@@ -18,9 +20,9 @@ type Packet struct {
 	Payload     []byte
 }
 
-func NewPacket(ip [4]byte, timestamp uint32, messageType byte, payload []byte) *Packet {
-	//t := binary.BigEndian.Uint32(timestamp)
-	return &Packet{SrcIP: ip, Timestamp: timestamp, MessageType: messageType, Payload: payload}
+func NewPacket(ip net.IP, messageType byte, payload []byte) *Packet {
+	timestamp := uint32(time.Now().Unix())
+	return &Packet{SrcIP: ConvIpv4ToBytes(ip), Timestamp: timestamp, MessageType: messageType, Payload: payload}
 }
 
 func (p *Packet) Serialize() ([]byte, error) {
@@ -54,8 +56,8 @@ func (p *Packet) Serialize() ([]byte, error) {
 
 func Deserialize(packet []byte) (Packet, error) {
 
-	if len(packet) < 14 {
-		log.Fatal("packetData is too small")
+	if len(packet) < 9 || len(packet) > 1048576 {
+		log.Fatal("packetData is too small or too large")
 	}
 
 	// Create a Packet instance
