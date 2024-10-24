@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"testing"
-	"time"
 )
 
 type TestStruct struct {
@@ -18,7 +17,6 @@ func TestPacketSerDer(t *testing.T) {
 
 	ip := net.IP.To4(net.ParseIP("192.168.1.1"))
 
-	timestamp := uint32(time.Now().Unix())
 	messageType := utils.AUTH
 	payload := TestStruct{A: 200, B: "ok crodie", C: []int{2, 3, 4, 5}}
 
@@ -28,7 +26,7 @@ func TestPacketSerDer(t *testing.T) {
 		t.Errorf("Error converting payload to bytes array: %v", err)
 	}
 
-	p := utils.NewPacket(utils.ConvIpv4ToBytes(ip), timestamp, byte(messageType), payloadBytes)
+	p := utils.NewPacket(ip, byte(messageType), payloadBytes)
 
 	out, err := p.Serialize()
 
