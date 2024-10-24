@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"ascii/utils"
@@ -9,15 +9,15 @@ import (
 	"strings"
 )
 
-func main() {
-	listener, err := net.Listen("tcp", ":3000")
+func Setup(port string) {
+	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Server listening on :3000")
+	fmt.Printf("Server listening on %v\n", port)
 
 	for {
 
@@ -29,7 +29,6 @@ func main() {
 
 		go handleConnection(conn)
 	}
-
 }
 
 func handleConnection(conn net.Conn) {
@@ -60,4 +59,33 @@ func handleConnection(conn net.Conn) {
 
 		HandlePacketType(&packet, conn)
 	}
+}
+
+func HandlePacketType(packet *utils.Packet, conn net.Conn) {
+	switch packet.MessageType {
+	case utils.AUTH:
+		if !authenticate(string(packet.Payload)) {
+			conn.Write([]byte("Not authenticated !!!"))
+			conn.Close()
+			return
+		}
+		conn.Write([]byte("Authenticated !!!"))
+
+		break
+	default:
+		log.Println("Unkown packet type !!!")
+		conn.Close()
+	}
+}
+
+func authenticate(token string) bool {
+	tokens := []string{"ABCosp", "OPOOO", "JKASSS"}
+
+	for _, t := range tokens {
+		if t == token {
+			return true
+		}
+	}
+
+	return false
 }

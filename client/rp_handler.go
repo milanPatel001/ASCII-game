@@ -11,8 +11,7 @@ import (
 	"strings"
 )
 
-func main() {
-
+func reverseProxyFlow() {
 	url := "localhost:3000"
 
 	conn, err := net.Dial("tcp", url)
@@ -22,7 +21,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	isAuthenticated := authenticateClient(conn)
+	isAuthenticated := RPauthenticateClient(conn)
 
 	if !isAuthenticated {
 		conn.Close()
@@ -45,10 +44,9 @@ func main() {
 
 		log.Printf("READ: %v bytes\n", n)
 	}
-
 }
 
-func authenticateClient(conn net.Conn) bool {
+func RPauthenticateClient(conn net.Conn) bool {
 
 	scanner := bufio.NewScanner(os.Stdin)
 

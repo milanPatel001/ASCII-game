@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	AUTH = 0x01
-	MOVE = 0x02
+	AUTH               = 0x01
+	MOVE               = 0x02
+	REDIRECT_TO_SERVER = 0x03
+	BROADCAST          = 0x04
 )
 
 type Packet struct {
