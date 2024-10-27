@@ -4,8 +4,23 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
 	"net"
 )
+
+func GetIpFromRemoteAddr(addr string) (string, error) {
+	ip, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println(ip)
+	if ip == "::1" {
+		ip = "127.0.0.1"
+	}
+
+	return ip, nil
+}
 
 func ConvBytesToIpv4(ip [4]byte) net.IP {
 	return net.IPv4(ip[0], ip[1], ip[2], ip[3])

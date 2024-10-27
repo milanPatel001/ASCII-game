@@ -14,14 +14,22 @@ import (
 func reverseProxyFlow() {
 	url := "localhost:3000"
 
+	ConnectToTcpServer(url)
+
+}
+
+func ConnectToTcpServer(url string) {
+
 	conn, err := net.Dial("tcp", url)
 	if err != nil {
 		log.Println("Error connecting:", err)
+		fmt.Printf("Error connecting: %v", err)
 		return
 	}
+
 	defer conn.Close()
 
-	isAuthenticated := RPauthenticateClient(conn)
+	isAuthenticated := true //authFn(conn)
 
 	if !isAuthenticated {
 		conn.Close()
@@ -68,9 +76,7 @@ func RPauthenticateClient(conn net.Conn) bool {
 		ip = "127.0.0.1"
 	}
 
-	packet := utils.NewPacket(net.ParseIP(ip), utils.AUTH, []byte(input))
-
-	pb, err := packet.Serialize()
+	pb, err := utils.CreatePacketAndSerialize(ip, utils.AUTH, input)
 	if err != nil {
 		return false
 	}

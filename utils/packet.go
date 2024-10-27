@@ -22,6 +22,12 @@ type Packet struct {
 	Payload     []byte
 }
 
+func CreatePacketAndSerialize(ip string, packetType uint8, payload string) ([]byte, error) {
+	packet := NewPacket(net.ParseIP(ip), packetType, []byte(payload))
+
+	return packet.Serialize()
+}
+
 func NewPacket(ip net.IP, messageType byte, payload []byte) *Packet {
 	timestamp := uint32(time.Now().Unix())
 	return &Packet{SrcIP: ConvIpv4ToBytes(ip), Timestamp: timestamp, MessageType: messageType, Payload: payload}

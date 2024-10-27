@@ -2,12 +2,44 @@ package handlers
 
 import (
 	"ascii/utils"
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 )
+
+var redisClient *redis.Client
+
+func GetRedisInstance() *redis.Client {
+
+	addr := os.Getenv("REDIS_ADDR")
+	psk := os.Getenv("REDIS_PSWD")
+
+	if redisClient == nil {
+		return redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: psk,
+		})
+	}
+
+	return redisClient
+}
+
+func DisconnectRedis() error {
+	if redisClient == nil {
+		return nil
+	}
+
+	err := redisClient.Close()
+	redisClient = nil
+
+	return err
+}
 
 func Setup(port string) {
 	listener, err := net.Listen("tcp", port)
@@ -20,7 +52,6 @@ func Setup(port string) {
 	fmt.Printf("Server listening on %v\n", port)
 
 	for {
-
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
@@ -64,7 +95,7 @@ func handleConnection(conn net.Conn) {
 func HandlePacketType(packet *utils.Packet, conn net.Conn) {
 	switch packet.MessageType {
 	case utils.AUTH:
-		if !authenticate(string(packet.Payload)) {
+		if !verifySessionToken(string(packet.Payload), utils.ConvBytesToIpv4(packet.SrcIP)) {
 			conn.Write([]byte("Not authenticated !!!"))
 			conn.Close()
 			return
@@ -78,14 +109,17 @@ func HandlePacketType(packet *utils.Packet, conn net.Conn) {
 	}
 }
 
-func authenticate(token string) bool {
-	tokens := []string{"ABCosp", "OPOOO", "JKASSS"}
+func verifySessionToken(token string, ip net.IP) bool {
 
-	for _, t := range tokens {
-		if t == token {
-			return true
-		}
+	rdb := GetRedisInstance()
+
+	resToken, err := rdb.Get(context.Background(), ip.String()).Result()
+
+	if err != nil {
+		log.Println(err)
+		return false
 	}
 
-	return false
+	return token == resToken
+
 }
