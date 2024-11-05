@@ -3,7 +3,6 @@ package game
 import (
 	"ascii/utils"
 	"fmt"
-	"os"
 )
 
 const (
@@ -73,7 +72,7 @@ func (s *StartMenuScreen) HandleInput(input byte) {
 			s.gameConfig.ScreenManager.ChangeScreen("group_join")
 
 		} else {
-			os.Exit(1)
+			s.gameConfig.TermChan <- true
 		}
 
 	}

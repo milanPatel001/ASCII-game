@@ -2,7 +2,6 @@ package game
 
 import (
 	"ascii/utils"
-	"os"
 )
 
 type Screen interface {
@@ -22,7 +21,6 @@ type ScreenManager struct {
 	nextScreen    Screen
 	isTransiting  bool
 	width, height int
-	TermChan      chan os.Signal
 }
 
 func NewScreenManager() *ScreenManager {

@@ -5,8 +5,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -24,6 +22,7 @@ type GameConfig struct {
 	Room          *Room
 	ScreenManager *ScreenManager
 	PlayerId      string
+	TermChan      chan bool
 }
 
 func InitializeGame(conn net.Conn, playerId string) {
@@ -37,7 +36,7 @@ func StartGame(gameConfig *GameConfig) {
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	gameConfig.ScreenManager.TermChan = handleTermination(oldState)
+	gameConfig.TermChan = handleTermination(oldState)
 
 	gameConfig.ScreenManager.AddScreen("start_menu", NewMenuScreen(gameConfig))
 	gameConfig.ScreenManager.AddScreen("group_creation", NewGroupCreationScreen(gameConfig))
@@ -67,6 +66,10 @@ func StartGame(gameConfig *GameConfig) {
 			}
 
 		case input := <-inputChan:
+			if input == 'q' {
+				gameConfig.TermChan <- true
+				break
+			}
 
 			if gameConfig.ScreenManager.ActiveScreen != nil {
 				gameConfig.ScreenManager.ActiveScreen.HandleInput(input)
@@ -118,9 +121,8 @@ func getInput(inputChan chan byte) {
 	}
 }
 
-func handleTermination(oldState *term.State) chan os.Signal {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+func handleTermination(oldState *term.State) chan bool {
+	c := make(chan bool, 1)
 
 	go func() {
 		<-c

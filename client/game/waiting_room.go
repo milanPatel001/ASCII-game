@@ -38,6 +38,11 @@ func (w *WaitingScreen) Exit() {}
 
 func (w *WaitingScreen) HandleInput(input byte) {
 	switch rune(input) {
+	case '\r':
+		// only creator can start the game
+		if len(w.gameConfig.Room.PlayersJoined) > 1 && w.gameConfig.Room.PlayersJoined[0] == w.gameConfig.PlayerId {
+			// game screen
+		}
 	case '\033':
 
 		packetType := utils.PLAYER_LEFT
@@ -46,7 +51,6 @@ func (w *WaitingScreen) HandleInput(input byte) {
 		if w.gameConfig.Room.PlayersJoined[0] == w.gameConfig.PlayerId {
 			packetType = utils.DESTROY_ROOM
 			payload = w.gameConfig.Room.Code
-			w.gameConfig.Room = &Room{}
 		}
 
 		packet, err := utils.CreatePacketAndSerialize("127.0.0.1", uint8(packetType), []byte(payload))
@@ -54,6 +58,7 @@ func (w *WaitingScreen) HandleInput(input byte) {
 			log.Fatal(err)
 		}
 
+		w.gameConfig.Room = &Room{}
 		w.gameConfig.conn.Write(packet)
 		w.gameConfig.ScreenManager.ChangeScreen("start_menu")
 	}
