@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func Setup() {
 
-	port := ":3000"
-	gameServerAddr := ":3001"
+	port := os.Getenv("AUTH_SERVER_PORT")
+	gameServerAddr := os.Getenv("GAME_SERVER_ADDR")
 
 	rdb := handlers.GetRedisInstance()
 
@@ -39,6 +40,8 @@ func Setup() {
 			return
 		}
 
+		// TODO generate a new session token and then store token + src ip in global cache and return the new generated token
+
 		err = rdb.Set(context.Background(), ip, "my_session_token", time.Minute*60).Err()
 
 		if err != nil {
@@ -46,8 +49,6 @@ func Setup() {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-
-		// TODO generate a new session token and then store token + src ip in global cache
 
 		sessionToken := fmt.Sprintf("my_session_token | %v", gameServerAddr)
 		w.Write([]byte(sessionToken))

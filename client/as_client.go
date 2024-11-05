@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ascii/client/game"
 	"ascii/utils"
 	"io"
 	"log"
@@ -13,58 +14,47 @@ func authServerFlow() {
 
 	url := "http://127.0.0.1:3000/auth"
 
-	resp, err := sendAuthToken(url)
+	resp, err := sendRestAuthToken(url)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	connectToGameServer(string(resp))
-
-}
-
-func connectToGameServer(resp string) error {
-
-	s := strings.Split(resp, " | ")
+	s := strings.Split(string(resp), " | ")
 
 	token := s[0]
 	addr := s[1]
 
+	connectToGameServer(token, addr)
+
+}
+
+func connectToGameServer(token, addr string) {
+
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	defer conn.Close()
 
 	ip, err := utils.GetIpFromRemoteAddr(conn.RemoteAddr().String())
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	pb, err := utils.CreatePacketAndSerialize(ip, utils.AUTH, token)
+	playerId, err := sendSessionToken(conn, ip, token)
+
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	_, err = conn.Write(pb)
-	if err != nil {
-		return err
-	}
+	// Here the game starts
+	game.InitializeGame(conn, string(playerId))
 
-	buf := make([]byte, 240)
-
-	n, err := conn.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	log.Println(string(buf[:n]))
-
-	return nil
 }
 
-func sendAuthToken(url string) ([]byte, error) {
+// authentication by auth server (REST)
+func sendRestAuthToken(url string) ([]byte, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("POST", url, nil)
@@ -87,5 +77,30 @@ func sendAuthToken(url string) ([]byte, error) {
 	defer res.Body.Close()
 
 	return io.ReadAll(res.Body)
+}
 
+// Authentication by game server (SOCKET)
+func sendSessionToken(conn net.Conn, ip string, token string) ([]byte, error) {
+	pb, err := utils.CreatePacketAndSerialize(ip, utils.AUTH, []byte(token))
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = conn.Write(pb)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, 240)
+
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	if string(buf[:n]) == "-1" {
+		return nil, utils.AUTH_ERROR
+	}
+
+	return buf[:n], nil
 }

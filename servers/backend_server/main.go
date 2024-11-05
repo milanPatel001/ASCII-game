@@ -2,7 +2,6 @@ package main
 
 import (
 	"ascii/servers/backend_server/auth_server"
-	"ascii/servers/backend_server/reverse_proxy"
 	"log"
 	"os"
 	"strconv"
@@ -28,7 +27,7 @@ func main() {
 	}
 
 	if flow == REVERSE_PROXY_FLOW {
-		reverse_proxy.Setup()
+		//reverse_proxy.Setup()
 	} else {
 		auth_server.Setup()
 	}

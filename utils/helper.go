@@ -2,11 +2,26 @@ package utils
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"math/big"
 	"net"
 )
+
+func GeneratePlayerId() string {
+	idLength := 8
+	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	b := make([]byte, idLength)
+	for i := range b {
+		random, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		b[i] = charset[random.Int64()]
+	}
+	return string(b)
+
+}
 
 func GetIpFromRemoteAddr(addr string) (string, error) {
 	ip, _, err := net.SplitHostPort(addr)
@@ -40,6 +55,14 @@ func ConvSimplePayloadToBytes(payload any) ([]byte, error) {
 	}
 
 	return payloadBuf.Bytes(), nil
+
+}
+
+func GetComplexPayloadFromBytes(payload []byte, result any) error {
+	buf := bytes.NewBuffer(payload)
+	decoder := gob.NewDecoder(buf)
+
+	return decoder.Decode(result)
 
 }
 

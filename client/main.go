@@ -24,10 +24,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if flow == REVERSE_PROXY_FLOW {
-		reverseProxyFlow()
-	} else {
+	if flow == AUTH_SERVER_FLOW {
 		authServerFlow()
+
+	} else {
+		//	reverseProxyFlow()
 	}
 
 }
