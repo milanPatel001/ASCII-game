@@ -20,7 +20,6 @@ func Setup(port string) {
 	fmt.Printf("Server listening on %v\n", port)
 
 	for {
-
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
@@ -59,33 +58,4 @@ func handleConnection(conn net.Conn) {
 
 		HandlePacketType(&packet, conn)
 	}
-}
-
-func HandlePacketType(packet *utils.Packet, conn net.Conn) {
-	switch packet.MessageType {
-	case utils.AUTH:
-		if !authenticate(string(packet.Payload)) {
-			conn.Write([]byte("Not authenticated !!!"))
-			conn.Close()
-			return
-		}
-		conn.Write([]byte("Authenticated !!!"))
-
-		break
-	default:
-		log.Println("Unkown packet type !!!")
-		conn.Close()
-	}
-}
-
-func authenticate(token string) bool {
-	tokens := []string{"ABCosp", "OPOOO", "JKASSS"}
-
-	for _, t := range tokens {
-		if t == token {
-			return true
-		}
-	}
-
-	return false
 }

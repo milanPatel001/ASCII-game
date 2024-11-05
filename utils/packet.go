@@ -13,6 +13,14 @@ const (
 	MOVE               = 0x02
 	REDIRECT_TO_SERVER = 0x03
 	BROADCAST          = 0x04
+	CREATE_GROUP       = 0x05
+	JOIN_GROUP         = 0x06
+	START_GAME         = 0x07
+	NO_PAYLOAD         = 0x09
+	DESTROY_ROOM       = 0x0A
+	PLAYER_LEFT        = 0x0B
+	ERROR              = 0x0E
+	NOT_FOUND          = 0x0F
 )
 
 type Packet struct {
@@ -20,6 +28,12 @@ type Packet struct {
 	Timestamp   uint32
 	MessageType byte
 	Payload     []byte
+}
+
+func CreatePacketAndSerialize(ip string, packetType uint8, payload []byte) ([]byte, error) {
+	packet := NewPacket(net.ParseIP(ip), packetType, payload)
+
+	return packet.Serialize()
 }
 
 func NewPacket(ip net.IP, messageType byte, payload []byte) *Packet {
@@ -45,13 +59,13 @@ func (p *Packet) Serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	n, err := buffer.Write(p.Payload)
+	_, err := buffer.Write(p.Payload)
 
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("Payload size: %v", n)
+	//log.Printf("Payload size: %v", n)
 
 	return buffer.Bytes(), nil
 }
