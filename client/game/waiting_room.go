@@ -41,7 +41,11 @@ func (w *WaitingScreen) HandleInput(input byte) {
 	case '\r':
 		// only creator can start the game
 		if len(w.gameConfig.Room.PlayersJoined) > 1 && w.gameConfig.Room.PlayersJoined[0] == w.gameConfig.PlayerId {
-			// game screen
+			pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.START_GAME, []byte(w.gameConfig.Room.Code))
+
+			w.gameConfig.conn.Write(pkt)
+
+			w.gameConfig.ScreenManager.ChangeScreen("game")
 		}
 	case '\033':
 
@@ -114,6 +118,10 @@ func (g *WaitingScreen) HandleServerUpdate(packet utils.Packet) {
 		}
 
 		g.gameConfig.Room.PlayersJoined = append(g.gameConfig.Room.PlayersJoined[:i], g.gameConfig.Room.PlayersJoined[i+1:]...)
+	}
+
+	if packet.MessageType == utils.START_GAME {
+		g.gameConfig.ScreenManager.ChangeScreen("game")
 	}
 
 }

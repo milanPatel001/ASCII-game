@@ -12,8 +12,14 @@ import (
 	"strings"
 )
 
-var PlayerIdMap = make(map[string]net.Conn)
-var RoomMap = make(map[string]*game.Room) // room code -> info
+type RoomInfo struct {
+	CurrentSession *game.Room
+	GameState      *game.GameState
+}
+
+var PlayerIdMap = make(map[string]net.Conn) // player id -> tcp conn
+var RoomMap = make(map[string]*RoomInfo)    // room code -> info
+//var
 
 func HandlePacketType(packet *utils.Packet, conn net.Conn) {
 	switch packet.MessageType {
@@ -27,48 +33,105 @@ func HandlePacketType(packet *utils.Packet, conn net.Conn) {
 		handleGroupJoinPacket(packet, conn)
 
 	case utils.DESTROY_ROOM:
-		roomCode := string(packet.Payload)
-		pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.DESTROY_ROOM, nil)
-
-		room := RoomMap[roomCode].PlayersJoined
-
-		for i, id := range room {
-			if i == 0 {
-				continue
-			}
-
-			PlayerIdMap[id].Write(pkt)
-		}
-
-		delete(RoomMap, roomCode)
+		handleRoomDestroyPacket(packet)
 
 	case utils.PLAYER_LEFT:
-		s := strings.Split(string(packet.Payload), " | ")
-		roomCode := s[0]
-		playerLeftId := s[1]
+		handlePlayerLeftPacket(packet)
 
-		room := RoomMap[roomCode]
+	case utils.START_GAME:
+		handleStartGamePacket(packet)
 
-		pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.PLAYER_LEFT, []byte(playerLeftId))
-
-		i := 0
-		for ind, id := range room.PlayersJoined {
-			if id == playerLeftId {
-				i = ind
-			} else {
-				PlayerIdMap[id].Write(pkt)
-			}
-		}
-
-		if i < len(room.PlayersJoined)-1 {
-			room.PlayersJoined = append(room.PlayersJoined[:i], room.PlayersJoined[i+1:]...)
-		} else {
-			room.PlayersJoined = room.PlayersJoined[:i]
-		}
+	case utils.PLAYER_MOVE:
+		handlePlayerMovement(packet)
 
 	default:
 		log.Println("Unkown packet type !!!")
 		conn.Close()
+	}
+}
+
+func handlePlayerMovement(packet *utils.Packet) {
+	// curr pos, last pos, room code, player id
+	var playerMovementPayload game.PlayerMovementPayload
+
+	err := utils.GetComplexPayloadFromBytes(packet.Payload, &playerMovementPayload)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	players := RoomMap[playerMovementPayload.RoomCode].GameState.Players
+	pkt, _ := packet.Serialize()
+
+	// update player coords in server and send payload to other players
+	for i := range players {
+		if players[i].Id == playerMovementPayload.PlayerId {
+			players[i].Pos = playerMovementPayload.CurrPos
+			continue
+		}
+
+		PlayerIdMap[players[i].Id].Write(pkt)
+
+	}
+
+}
+
+// *********************************************** GAME MENU STUFF ***********************************************
+
+func handleStartGamePacket(packet *utils.Packet) {
+	roomCode := string(packet.Payload)
+	room := RoomMap[roomCode]
+
+	// create game state and store it
+	room.GameState = game.NewGameState(20, 20, room.CurrentSession)
+
+	pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.START_GAME, nil)
+
+	for i := 1; i < len(room.CurrentSession.PlayersJoined); i++ {
+		PlayerIdMap[room.CurrentSession.PlayersJoined[i]].Write(pkt)
+	}
+}
+
+func handleRoomDestroyPacket(packet *utils.Packet) {
+	roomCode := string(packet.Payload)
+	pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.DESTROY_ROOM, nil)
+
+	room := RoomMap[roomCode].CurrentSession.PlayersJoined
+
+	for i, id := range room {
+		if i == 0 {
+			continue
+		}
+
+		PlayerIdMap[id].Write(pkt)
+	}
+
+	delete(RoomMap, roomCode)
+
+}
+
+func handlePlayerLeftPacket(packet *utils.Packet) {
+	s := strings.Split(string(packet.Payload), " | ")
+	roomCode := s[0]
+	playerLeftId := s[1]
+
+	room := RoomMap[roomCode]
+
+	pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.PLAYER_LEFT, []byte(playerLeftId))
+
+	i := 0
+	for ind, id := range room.CurrentSession.PlayersJoined {
+		if id == playerLeftId {
+			i = ind
+		} else {
+			PlayerIdMap[id].Write(pkt)
+		}
+	}
+
+	if i < len(room.CurrentSession.PlayersJoined)-1 {
+		room.CurrentSession.PlayersJoined = append(room.CurrentSession.PlayersJoined[:i], room.CurrentSession.PlayersJoined[i+1:]...)
+	} else {
+		room.CurrentSession.PlayersJoined = room.CurrentSession.PlayersJoined[:i]
 	}
 }
 
@@ -79,16 +142,16 @@ func handleGroupJoinPacket(packet *utils.Packet, conn net.Conn) {
 	playerId := s[1]
 
 	if room, exists := RoomMap[code]; exists {
-		room.PlayersJoined = append(room.PlayersJoined, playerId)
+		room.CurrentSession.PlayersJoined = append(room.CurrentSession.PlayersJoined, playerId)
 
-		b, err := utils.ConvComplexPayloadToBytes(room)
+		b, err := utils.ConvComplexPayloadToBytes(room.CurrentSession)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		packet, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.JOIN_GROUP, b)
 
-		fmt.Printf("Struct after adding: %+v\n", room)
+		fmt.Printf("Struct after adding: %+v\n", room.CurrentSession)
 		conn.Write(packet)
 
 		// Broadcast to other player waiting ...
@@ -98,9 +161,9 @@ func handleGroupJoinPacket(packet *utils.Packet, conn net.Conn) {
 			return
 		}
 
-		log.Println("Players joined", len(room.PlayersJoined))
+		log.Println("Players joined", len(room.CurrentSession.PlayersJoined))
 
-		for _, id := range room.PlayersJoined {
+		for _, id := range room.CurrentSession.PlayersJoined {
 			if id == playerId {
 				continue
 			}
@@ -133,7 +196,7 @@ func handleGroupCreatePacket(packet *utils.Packet) {
 
 	// Print the restored struct
 	fmt.Printf("Restored struct: %+v\n", room)
-	RoomMap[room.Code] = &room
+	RoomMap[room.Code] = &RoomInfo{CurrentSession: &room}
 }
 
 func handleAuthPacket(packet *utils.Packet, conn net.Conn) {

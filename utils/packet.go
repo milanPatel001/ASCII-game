@@ -10,15 +10,15 @@ import (
 
 const (
 	AUTH               = 0x01
-	MOVE               = 0x02
-	REDIRECT_TO_SERVER = 0x03
-	BROADCAST          = 0x04
-	CREATE_GROUP       = 0x05
-	JOIN_GROUP         = 0x06
-	START_GAME         = 0x07
+	REDIRECT_TO_SERVER = 0x02
+	BROADCAST          = 0x03
+	CREATE_GROUP       = 0x04
+	JOIN_GROUP         = 0x05
+	START_GAME         = 0x06
 	NO_PAYLOAD         = 0x09
 	DESTROY_ROOM       = 0x0A
 	PLAYER_LEFT        = 0x0B
+	PLAYER_MOVE        = 0x0C
 	ERROR              = 0x0E
 	NOT_FOUND          = 0x0F
 )

@@ -42,6 +42,7 @@ func StartGame(gameConfig *GameConfig) {
 	gameConfig.ScreenManager.AddScreen("group_creation", NewGroupCreationScreen(gameConfig))
 	gameConfig.ScreenManager.AddScreen("wait_menu", NewWaitingScreen(gameConfig))
 	gameConfig.ScreenManager.AddScreen("group_join", NewGroupJoinScreen(gameConfig))
+	gameConfig.ScreenManager.AddScreen("game", NewGameScreen(gameConfig))
 
 	gameConfig.ScreenManager.ChangeScreen("start_menu")
 
@@ -49,7 +50,7 @@ func StartGame(gameConfig *GameConfig) {
 	inputChan := make(chan byte)
 	serverUpdateChan := make(chan utils.Packet)
 
-	updateTicker := time.NewTicker(time.Second / 60)
+	updateTicker := time.NewTicker(time.Second / 30)
 	defer updateTicker.Stop()
 
 	// Input handling goroutine
@@ -66,6 +67,7 @@ func StartGame(gameConfig *GameConfig) {
 			}
 
 		case input := <-inputChan:
+
 			if input == 'q' {
 				gameConfig.TermChan <- true
 				break

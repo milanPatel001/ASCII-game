@@ -5,6 +5,13 @@ import (
 	"os"
 )
 
+type PlayerMovementPayload struct {
+	CurrPos Position
+	//LastPos  Position
+	RoomCode string
+	PlayerId string
+}
+
 func TextInput() string {
 	var input []rune
 
