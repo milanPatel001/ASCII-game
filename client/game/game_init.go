@@ -38,9 +38,9 @@ type GameState struct {
 	RoomCode string
 	Players  []Player
 	//npcs         []GameObject
-	windowWidth  int
-	windowHeight int
-	Terrains     []Terrain // multiple rooms with different sizes
+	innerWindowWidth  int
+	innerWindowHeight int
+	Terrains          []Terrain // multiple rooms with different sizes
 }
 
 func NewGameState(windowHeight, windowWidth int, room *Room) *GameState {
@@ -52,8 +52,8 @@ func NewGameState(windowHeight, windowWidth int, room *Room) *GameState {
 	for i, playerId := range room.PlayersJoined {
 
 		players = append(players, Player{
-			Pos:      Position{2 * i, 1},
-			LastPos:  Position{2 * i, 1},
+			Pos:      Position{2 * i, 0}, // relative to terrain coords
+			LastPos:  Position{2 * i, 0},
 			Symbol:   symbols[i],
 			Velocity: 1,
 			Id:       playerId,
@@ -62,11 +62,11 @@ func NewGameState(windowHeight, windowWidth int, room *Room) *GameState {
 	}
 
 	gameState := &GameState{
-		RoomCode:     room.Code,
-		Players:      players,
-		windowWidth:  windowWidth,
-		windowHeight: windowHeight,
-		Terrains:     []Terrain{terrain},
+		RoomCode:          room.Code,
+		Players:           players,
+		innerWindowWidth:  windowWidth,
+		innerWindowHeight: windowHeight,
+		Terrains:          []Terrain{terrain},
 	}
 
 	return gameState

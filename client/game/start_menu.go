@@ -16,6 +16,7 @@ type StartMenuScreen struct {
 	selectedOption, previousOption int
 	box                            [HEIGHT][WIDTH]rune
 	startingRow                    int
+	boxStartingPos                 Position
 	render                         bool
 }
 
@@ -39,6 +40,9 @@ func (s *StartMenuScreen) Init() {
 		}
 	}
 
+	s.boxStartingPos.X = s.gameConfig.StartingInnerWindowPos.X + ((s.gameConfig.GameWindowHeight - 4 - HEIGHT) / 2)
+	s.boxStartingPos.Y = s.gameConfig.StartingInnerWindowPos.Y + ((s.gameConfig.GameWindowWidth - 4 - WIDTH) / 2)
+
 	s.startingRow = (HEIGHT - len(s.items)) / 2
 
 	// Place menu items or other elements inside the box
@@ -52,6 +56,7 @@ func (s *StartMenuScreen) Init() {
 func (s *StartMenuScreen) Enter() {
 	ClearScreen()
 	MoveCursorToStartingPos()
+	s.DrawWindow()
 }
 
 func (s *StartMenuScreen) Exit() {}
@@ -87,9 +92,10 @@ func (s *StartMenuScreen) Update() {}
 // *** UTILITY FUNCTION ****
 
 func (s *StartMenuScreen) displayBox() {
-	fmt.Print("\033[H\033[?25l") // move the cursor to the starting pos and hide
+	fmt.Print("\033[?25l") // hide the cursor
+
 	for i := 0; i < HEIGHT; i++ {
-		fmt.Printf("\033[%d;1H", i+1) // move the cursor to the start of next row
+		MoveCursor(i+s.boxStartingPos.X, s.boxStartingPos.Y)
 
 		for j := 0; j < WIDTH; j++ {
 			if i == s.selectedOption+s.startingRow {
@@ -117,8 +123,56 @@ func (s *StartMenuScreen) NeedsUpdate() bool {
 	return s.render
 }
 
-func (g *StartMenuScreen) HandleServerUpdate(packet utils.Packet) {}
+func (s *StartMenuScreen) HandleServerUpdate(packet utils.Packet) {}
 
-func itemStartingCol(WIDTH int, text string) int {
-	return (WIDTH - len(text)) / 2
+func (s *StartMenuScreen) DrawWindow() {
+	lineChar := "─"
+
+	startingX := s.gameConfig.StartingGameWindowPos.X
+	startingY := s.gameConfig.StartingGameWindowPos.Y
+
+	MoveCursor(startingX, startingY)
+
+	// First row
+	for i := 0; i < s.gameConfig.GameWindowWidth; i++ {
+		fmt.Printf("\033[92m%v", lineChar)
+	}
+
+	// left corner
+	MoveCursor(startingX, startingY)
+	fmt.Print("╭")
+
+	// first column
+	for i := 1; i < s.gameConfig.GameWindowHeight; i++ {
+		MoveCursor(startingX+i, startingY)
+		fmt.Print("\033[92m│")
+	}
+
+	fmt.Print("\033[1B")
+	fmt.Print("\033[1D")
+
+	// Lower Left Corner
+	fmt.Print("╰")
+
+	// last row
+	for i := 0; i < s.gameConfig.GameWindowWidth; i++ {
+		fmt.Printf("\033[92m%v", lineChar)
+	}
+
+	// Lower right corner
+	MoveCursor(startingX+s.gameConfig.GameWindowHeight, startingY+s.gameConfig.GameWindowWidth)
+	fmt.Print("╯")
+
+	// last column
+	for i := s.gameConfig.GameWindowHeight - 1; i >= 0; i-- {
+		MoveCursor(startingX+i, startingY+s.gameConfig.GameWindowWidth)
+		fmt.Print("\033[92m│")
+	}
+
+	// Upper right corner
+	fmt.Print("\033[1D")
+	fmt.Print("╮")
+
+	fmt.Print("\033[0m")
+
 }

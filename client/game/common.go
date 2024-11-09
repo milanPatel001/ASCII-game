@@ -12,6 +12,17 @@ type PlayerMovementPayload struct {
 	PlayerId string
 }
 
+type GameWindowInputPayload struct {
+	windowHeight int
+	windowWidth  int
+	innerWindowX int
+	innerWindowY int
+}
+
+func itemStartingCol(WIDTH int, text string) int {
+	return (WIDTH - len(text)) / 2
+}
+
 func TextInput() string {
 	var input []rune
 

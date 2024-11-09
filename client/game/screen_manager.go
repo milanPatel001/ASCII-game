@@ -6,13 +6,14 @@ import (
 
 type Screen interface {
 	Init()  // init
-	Enter() // when screen becomes active
+	Enter() // when screen becomes active (can render or not)
 	Exit()  // when screen becomes inactive
 	HandleInput(input byte)
 	Render()
 	Update() // will handle update and all that stuff (no rendering stuff)
 	NeedsUpdate() bool
 	HandleServerUpdate(packet utils.Packet)
+	DrawWindow() // will be used in Enter method to draw window
 }
 
 type ScreenManager struct {
