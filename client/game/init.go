@@ -15,6 +15,7 @@ type Room struct {
 	Code          string
 	TotalPlayers  int
 	PlayersJoined []string
+	GameState     *GameState
 }
 
 type GameConfig struct {

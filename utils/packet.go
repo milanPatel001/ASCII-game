@@ -15,6 +15,7 @@ const (
 	CREATE_GROUP       = 0x04
 	JOIN_GROUP         = 0x05
 	START_GAME         = 0x06
+	TERRAIN_EXIT       = 0x07
 	NO_PAYLOAD         = 0x09
 	DESTROY_ROOM       = 0x0A
 	PLAYER_LEFT        = 0x0B

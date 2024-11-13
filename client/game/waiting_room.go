@@ -45,7 +45,9 @@ func (w *WaitingScreen) HandleInput(input byte) {
 
 			w.gameConfig.conn.Write(pkt)
 
-			w.gameConfig.ScreenManager.ChangeScreen("game")
+			MoveCursor(9, 0)
+			fmt.Print("Initialzing Game ...")
+			//w.gameConfig.ScreenManager.ChangeScreen("game")
 		}
 	case '\033':
 
@@ -121,6 +123,13 @@ func (g *WaitingScreen) HandleServerUpdate(packet utils.Packet) {
 	}
 
 	if packet.MessageType == utils.START_GAME {
+		var gameStartPayload GameStartPayload
+		err := utils.GetComplexPayloadFromBytes(packet.Payload, &gameStartPayload)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		g.gameConfig.Room.GameState = NewGameState(g.gameConfig.GameWindowHeight-4, g.gameConfig.GameWindowWidth-4, g.gameConfig.Room, gameStartPayload.PlayerSeeds, gameStartPayload.MiddleGroundSeeds)
 		g.gameConfig.ScreenManager.ChangeScreen("game")
 	}
 

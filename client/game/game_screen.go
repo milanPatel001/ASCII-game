@@ -4,13 +4,17 @@ import (
 	"ascii/utils"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 )
 
+// TODO : fix curr and lastPos visibility glitches after changing terrains
+
 type GameScreen struct {
 	gameConfig             *GameConfig
-	GameState              *GameState
 	GameMenuManager        *GameMenuManager
+	GameState              *GameState
 	render                 bool
 	CurrentPlayer          *Player
 	currentTerrain         *Terrain
@@ -34,19 +38,25 @@ func (g *GameScreen) Init() {
 }
 
 func (g *GameScreen) Enter() {
+	g.GameState = g.gameConfig.Room.GameState
 
-	if g.GameState == nil {
-		g.GameState = NewGameState(g.gameConfig.GameWindowHeight-4, g.gameConfig.GameWindowWidth-4, g.gameConfig.Room)
+	playerIndex := 0
 
-		for i := range g.GameState.Players {
-			if g.GameState.Players[i].Id == g.gameConfig.PlayerId {
-				g.CurrentPlayer = &g.GameState.Players[i]
-				break
-			}
+	for i := range g.gameConfig.Room.PlayersJoined {
+		if g.gameConfig.PlayerId == g.gameConfig.Room.PlayersJoined[i] {
+			playerIndex = i
+			break
 		}
-
-		g.currentTerrain = &g.GameState.Terrains[0]
 	}
+
+	for i := range g.GameState.Players {
+		if g.GameState.Players[i].Id == g.gameConfig.PlayerId {
+			g.CurrentPlayer = &g.GameState.Players[i]
+			break
+		}
+	}
+
+	g.currentTerrain = &g.GameState.Terrains[playerIndex]
 
 	ClearScreen()
 	MoveCursorToStartingPos()
@@ -56,6 +66,7 @@ func (g *GameScreen) Enter() {
 	g.DrawTerrainAndPlayers()
 
 	g.CreateGameMenuManager()
+
 }
 
 func (g *GameScreen) Exit() {}
@@ -111,9 +122,42 @@ func (g *GameScreen) HandleInput(input byte) {
 	g.CurrentPlayer.Pos.X = newX
 	g.CurrentPlayer.Pos.Y = newY
 
+	prevSeed := g.currentTerrain.Seed
+
+	for _, exit := range g.currentTerrain.ExitCoord {
+		if newX == exit.Pos.X && newY == exit.Pos.Y {
+			ind := GetTerrainIndexUsingSeed(g.GameState.Terrains, exit.ExitSeed)
+			g.currentTerrain = &g.GameState.Terrains[ind]
+			g.CurrentPlayer.CurrSeed = exit.ExitSeed
+
+			newExitCoords := g.currentTerrain.ExitCoord
+
+			seedIndex := 0
+			for j, ex := range newExitCoords {
+				if ex.ExitSeed == prevSeed {
+					seedIndex = j
+					break
+				}
+			}
+
+			g.CurrentPlayer.Pos = newExitCoords[seedIndex].Pos
+			//g.CurrentPlayer.LastPos = g.CurrentPlayer.Pos
+
+			g.DrawTerrainAndPlayers()
+
+			payload := []byte(fmt.Sprintf("%v | %v | %v", g.gameConfig.Room.Code, g.gameConfig.PlayerId, exit.ExitSeed))
+			pkt, _ := utils.CreatePacketAndSerialize("127.0.0.1", utils.TERRAIN_EXIT, payload)
+			g.gameConfig.conn.Write(pkt)
+
+			return
+
+		}
+
+	}
+
 	payload := PlayerMovementPayload{
 		CurrPos:  g.CurrentPlayer.Pos,
-		RoomCode: g.GameState.RoomCode,
+		RoomCode: g.gameConfig.Room.Code,
 		PlayerId: g.CurrentPlayer.Id,
 	}
 
@@ -143,10 +187,10 @@ func (g *GameScreen) Render() {
 
 	// Draw at new position
 	MoveCursor(g.CurrentPlayer.Pos.X+startingX, g.CurrentPlayer.Pos.Y+startingY)
-	fmt.Printf("%c", g.CurrentPlayer.Symbol)
+	fmt.Printf("\033[0;%vmP\033[0m", g.CurrentPlayer.Color)
 
 	for i, pl := range g.GameState.Players {
-		if pl.Id == g.CurrentPlayer.Id {
+		if pl.Id == g.CurrentPlayer.Id || pl.CurrSeed != g.CurrentPlayer.CurrSeed {
 			continue
 		}
 
@@ -193,6 +237,36 @@ func (g *GameScreen) HandleServerUpdate(packet utils.Packet) {
 				break
 			}
 		}
+
+		return
+	}
+
+	if packet.MessageType == utils.TERRAIN_EXIT {
+		str := strings.Split(string(packet.Payload), " | ")
+
+		playerId := str[0]
+		exitSeed, _ := strconv.Atoi(str[1])
+
+		for i, pl := range g.GameState.Players {
+			if pl.Id == playerId {
+				prevSeed := g.GameState.Players[i].CurrSeed
+				g.GameState.Players[i].CurrSeed = exitSeed
+
+				terr := g.GameState.Terrains[GetTerrainIndexUsingSeed(g.GameState.Terrains, exitSeed)]
+
+				seedIndex := 0
+				for j, ex := range terr.ExitCoord {
+					if ex.ExitSeed == prevSeed {
+						seedIndex = j
+						break
+					}
+				}
+
+				g.GameState.Players[i].Pos = terr.ExitCoord[seedIndex].Pos
+				//g.GameState.Players[i].LastPos = g.GameState.Players[i].Pos
+				break
+			}
+		}
 	}
 }
 
@@ -215,7 +289,7 @@ func (g *GameScreen) renderInterpolatedPlayer(player *Player) (int, int) {
 	fmt.Printf("%c", g.currentTerrain.Tiles[player.LastPos.X][player.LastPos.Y].Symbol)
 
 	MoveCursor(newX+startingX, newY+startingY)
-	fmt.Printf("%c", player.Symbol)
+	fmt.Printf("\033[0;%vmP\033[0m", player.Color)
 
 	return newX, newY
 }
@@ -233,7 +307,7 @@ func (g *GameScreen) isValidMove(newX, newY int) bool {
 
 	// Check collision with other players
 	for _, player := range g.GameState.Players {
-		if player.Id == g.CurrentPlayer.Id {
+		if player.Id == g.CurrentPlayer.Id || player.CurrSeed != g.CurrentPlayer.CurrSeed {
 			continue
 		}
 
@@ -274,6 +348,8 @@ func (g *GameScreen) CreateGameMenuManager() {
 }
 
 func (s *GameScreen) DrawTerrainAndPlayers() {
+	logAtTop(s.currentTerrain.Seed)
+
 	startingX := s.gameConfig.StartingInnerWindowPos.X
 	startingY := s.gameConfig.StartingInnerWindowPos.Y
 
@@ -284,9 +360,13 @@ func (s *GameScreen) DrawTerrainAndPlayers() {
 		}
 	}
 
+	// in case of team game mode
 	for _, pl := range s.GameState.Players {
-		MoveCursor(startingX+pl.Pos.X, startingY+pl.Pos.Y)
-		fmt.Print(string(pl.Symbol))
+		if pl.CurrSeed == s.CurrentPlayer.CurrSeed {
+			MoveCursor(startingX+pl.Pos.X, startingY+pl.Pos.Y)
+			fmt.Printf("\033[0;%vmP\033[0m", pl.Color)
+		}
+
 	}
 }
 
