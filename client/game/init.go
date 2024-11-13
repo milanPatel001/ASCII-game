@@ -15,18 +15,49 @@ type Room struct {
 	Code          string
 	TotalPlayers  int
 	PlayersJoined []string
+	GameState     *GameState
 }
 
 type GameConfig struct {
-	conn          net.Conn
-	Room          *Room
-	ScreenManager *ScreenManager
-	PlayerId      string
-	TermChan      chan bool
+	conn                   net.Conn
+	Room                   *Room
+	ScreenManager          *ScreenManager
+	PlayerId               string
+	TermChan               chan bool
+	TickRate               time.Duration
+	TerminalHeight         int
+	TerminalWidth          int
+	GameWindowWidth        int
+	GameWindowHeight       int
+	StartingGameWindowPos  Position
+	StartingInnerWindowPos Position
 }
 
 func InitializeGame(conn net.Conn, playerId string) {
-	StartGame(&GameConfig{conn: conn, Room: &Room{}, ScreenManager: NewScreenManager(), PlayerId: playerId})
+	width, height, err := term.GetSize(int(os.Stdout.Fd()))
+
+	if err != nil {
+		log.Println("Error getting terminal size:", err)
+		return
+	}
+
+	if width < 90 && height < 30 {
+		log.Println("Increase the terminal size so that the game can fit properly !!!")
+		return
+	}
+
+	expectedTerminalHeight := 30
+	expectedTerminalWidth := 90
+
+	gameWindowWidth := expectedTerminalWidth - 4
+	gameWindowHeight := expectedTerminalHeight - 4
+
+	startingWindowPos := Position{((width - expectedTerminalWidth) / 2) + 1 + 2, ((height - expectedTerminalHeight) / 2) + 1 + 2}
+	startingInnerWindowPos := Position{startingWindowPos.X + 2, startingWindowPos.Y + 2}
+
+	StartGame(&GameConfig{conn: conn, Room: &Room{}, ScreenManager: NewScreenManager(), PlayerId: playerId, TickRate: time.Second / 30, TerminalWidth: width, TerminalHeight: height, GameWindowWidth: gameWindowWidth, GameWindowHeight: gameWindowHeight,
+		StartingGameWindowPos: startingWindowPos, StartingInnerWindowPos: startingInnerWindowPos,
+	})
 }
 
 func StartGame(gameConfig *GameConfig) {
@@ -50,7 +81,7 @@ func StartGame(gameConfig *GameConfig) {
 	inputChan := make(chan byte)
 	serverUpdateChan := make(chan utils.Packet)
 
-	updateTicker := time.NewTicker(time.Second / 30)
+	updateTicker := time.NewTicker(gameConfig.TickRate)
 	defer updateTicker.Stop()
 
 	// Input handling goroutine

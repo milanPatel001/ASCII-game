@@ -5,11 +5,44 @@ import (
 	"os"
 )
 
+type GameStartPayload struct {
+	PlayerSeeds       []int
+	MiddleGroundSeeds []int
+}
+
 type PlayerMovementPayload struct {
 	CurrPos Position
 	//LastPos  Position
 	RoomCode string
 	PlayerId string
+}
+
+type GameWindowInputPayload struct {
+	windowHeight int
+	windowWidth  int
+	innerWindowX int
+	innerWindowY int
+}
+
+func GetTerrainIndexUsingSeed(terrains []Terrain, seed int) int {
+
+	for i, tr := range terrains {
+		if tr.Seed == seed {
+			return i
+		}
+	}
+
+	return 0
+}
+
+func logAtTop(str any) {
+	MoveCursor(1, 1)
+	fmt.Print("\033[2K")
+	fmt.Print(str)
+}
+
+func itemStartingCol(WIDTH int, text string) int {
+	return (WIDTH - len(text)) / 2
 }
 
 func TextInput() string {
@@ -42,7 +75,7 @@ func TextInput() string {
 	return string(input)
 }
 
-func PressEnterToProceed() {
+func pressEnterToProceed() {
 	for {
 		char := ReadRune()
 

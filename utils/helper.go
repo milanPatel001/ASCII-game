@@ -79,3 +79,10 @@ func ConvComplexPayloadToBytes(payload any) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+func RandomNumberRange(low, high int64) int64 {
+	max := big.NewInt(high - low) // Define the upper bound
+	n, _ := rand.Int(rand.Reader, max)
+
+	return n.Int64() + low
+}

@@ -124,3 +124,29 @@ func generateCode() string {
 func (g *GroupCreationScreen) NeedsUpdate() bool {
 	return g.render
 }
+
+func (s *GroupCreationScreen) DrawWindow() {
+	lineChar := "─"
+
+	startingX := s.gameConfig.StartingGameWindowPos.X
+	startingY := s.gameConfig.StartingGameWindowPos.Y
+
+	MoveCursor(startingX, startingY)
+
+	// First row
+	for i := 0; i < s.gameConfig.GameWindowWidth; i++ {
+		fmt.Printf("\033[92m%v", lineChar)
+	}
+
+	// left corner
+	MoveCursor(startingX, startingY)
+	fmt.Print("╭")
+	//fmt.Print("\033[0m")
+
+	// first column
+	for i := 1; i < s.gameConfig.GameWindowHeight; i++ {
+		MoveCursor(startingX+i, startingY)
+		fmt.Print("\033[92m│")
+	}
+	fmt.Print("\033[0m")
+}
